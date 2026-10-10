@@ -1,62 +1,99 @@
-async function loadMessages() {
-    try {
-        const res = await fetch(`${SERVER_URL}/get-messages`, {
-            method: "GET",
-            headers: {
-                "Bypass-Tunnel-Remainder": "true"
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat Room Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .box { background: white; padding: 20px; border-radius: 8px; width: 350px; }
+        .hidden { display: none !important; }
+        #chatBox { height: 200px; border: 1px solid #ccc; overflow-y: auto; margin-bottom: 10px; padding: 5px; }
+    </style>
+</head>
+<body>
+
+    <!-- LOGIN SCREEN -->
+    <div id="loginScreen" class="box">
+        <h2>Login</h2>
+        <input type="text" id="usernameInput" placeholder="Enter username...">
+        <button onclick="login()">Enter</button>
+    </div>
+
+    <!-- CHAT ROOM SCREEN -->
+    <div id="chatScreen" class="box hidden">
+        <h2>Chat Room</h2>
+        <div id="chatBox"></div>
+        <input type="text" id="messageInput" placeholder="Type a message..." onkeypress="handleSendKey(event)">
+        <button onclick="sendMessage()">Send</button>
+    </div>
+
+    <!-- 👇 THIS <script> TAG IS CRITICAL SO THE BROWSER RUNS IT AS CODE INSTEAD OF TEXT 👇 -->
+    <script>
+        const SERVER_URL = "https://metal-teeth-warn.loca.lt"; 
+        let currentUsername = "";
+
+        function handleSendKey(e) {
+            if (e.key === "Enter") {
+                sendMessage();
             }
-        });
-        
-        if (!res.ok) {
-            console.error("Server returned bad status:", res.status);
-            return;
         }
 
-        const data = await res.json();
-        const chatBox = document.getElementById("chatBox");
-        chatBox.innerHTML = "";
-        
-        data.messages.forEach(msg => {
-            const div = document.createElement("div");
-            div.className = "msg";
-            div.textContent = msg;
-            chatBox.appendChild(div);
-        });
-        
-        chatBox.scrollTop = chatBox.scrollHeight;
-    } catch (err) {
-        console.error("Fetch GET error:", err);
-    }
-}
-
-async function sendMessage() {
-    const input = document.getElementById("messageInput");
-    const message = input.value.trim();
-
-    if (message !== "") {
-        input.value = ""; // Clear input
-
-        try {
-            const res = await fetch(`${SERVER_URL}/send-message`, {
-                method: "POST",
-                headers: { 
-                    "Content-Type": "application/json",
-                    "Bypass-Tunnel-Remainder": "true"
-                },
-                body: JSON.stringify({
-                    username: currentUsername,
-                    message: message
-                })
-            });
-
-            if (!res.ok) {
-                console.error("Failed to send, server status:", res.status);
-                return;
+        function login() {
+            const input = document.getElementById("usernameInput").value.trim();
+            if (input !== "") {
+                currentUsername = input;
+                document.getElementById("loginScreen").classList.add("hidden");
+                document.getElementById("chatScreen").classList.remove("hidden");
+                loadMessages();
+                setInterval(loadMessages, 2000);
             }
-
-            loadMessages();
-        } catch (err) {
-            console.error("Fetch POST error:", err);
         }
-    }
-}
+
+        async function loadMessages() {
+            try {
+                const res = await fetch(`${SERVER_URL}/get-messages`, {
+                    method: "GET",
+                    headers: { "Bypass-Tunnel-Remainder": "true" }
+                });
+                if (!res.ok) return;
+                const data = await res.json();
+                const chatBox = document.getElementById("chatBox");
+                chatBox.innerHTML = "";
+                data.messages.forEach(msg => {
+                    const div = document.createElement("div");
+                    div.textContent = msg;
+                    chatBox.appendChild(div);
+                });
+                chatBox.scrollTop = chatBox.scrollHeight;
+            } catch (err) {
+                console.error("Fetch GET error:", err);
+            }
+        }
+
+        async function sendMessage() {
+            const input = document.getElementById("messageInput");
+            const message = input.value.trim();
+            if (message !== "") {
+                input.value = "";
+                try {
+                    await fetch(`${SERVER_URL}/send-message`, {
+                        method: "POST",
+                        headers: { 
+                            "Content-Type": "application/json",
+                            "Bypass-Tunnel-Remainder": "true"
+                        },
+                        body: JSON.stringify({
+                            username: currentUsername,
+                            message: message
+                        })
+                    });
+                    loadMessages();
+                } catch (err) {
+                    console.error("Fetch POST error:", err);
+                }
+            }
+        }
+    </script>
+</body>
+</html>
