@@ -3,24 +3,102 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chat Room Test</title>
+    <title>Chat Room</title>
     <style>
-        body { font-family: Arial, sans-serif; padding: 20px; }
-        .box { background: white; padding: 20px; border-radius: 8px; width: 350px; }
-        .hidden { display: none !important; }
-        #chatBox { height: 200px; border: 1px solid #ccc; overflow-y: auto; margin-bottom: 10px; padding: 5px; }
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f9;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        .box {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            width: 350px;
+            text-align: center;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        input {
+            width: 85%;
+            padding: 10px;
+            margin-bottom: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            box-sizing: border-box;
+        }
+
+        button {
+            padding: 10px 20px;
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            width: 88%;
+            margin-bottom: 8px;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        .btn-secondary {
+            background-color: #28a745;
+        }
+
+        .btn-secondary:hover {
+            background-color: #218838;
+        }
+
+        #chatBox {
+            height: 250px;
+            border: 1px solid #ddd;
+            overflow-y: auto;
+            text-align: left;
+            padding: 10px;
+            margin-bottom: 10px;
+            background: #fafafa;
+            border-radius: 5px;
+        }
+
+        .msg {
+            margin-bottom: 8px;
+            font-size: 14px;
+            word-wrap: break-word;
+        }
+
+        .info-msg {
+            color: red;
+            font-size: 13px;
+            margin-bottom: 10px;
+        }
     </style>
 </head>
 <body>
 
-    <!-- LOGIN SCREEN -->
+    <!-- 1. LOGIN / REGISTER SCREEN -->
     <div id="loginScreen" class="box">
-        <h2>Login</h2>
-        <input type="text" id="usernameInput" placeholder="Enter username...">
-        <button onclick="login()">Enter</button>
+        <h2>Chat Room</h2>
+        <p>Log in or create a new account:</p>
+        <input type="text" id="usernameInput" placeholder="Username...">
+        <input type="password" id="passwordInput" placeholder="Password...">
+        <div id="infoText" class="info-msg hidden"></div>
+        <button onclick="submitAction('login')">Log In</button>
+        <button class="btn-secondary" onclick="submitAction('register')">Create Account</button>
     </div>
 
-    <!-- CHAT ROOM SCREEN -->
+    <!-- 2. CHAT ROOM SCREEN -->
     <div id="chatScreen" class="box hidden">
         <h2>Chat Room</h2>
         <div id="chatBox"></div>
@@ -28,25 +106,54 @@
         <button onclick="sendMessage()">Send</button>
     </div>
 
-    <!-- 👇 THIS <script> TAG IS CRITICAL SO THE BROWSER RUNS IT AS CODE INSTEAD OF TEXT 👇 -->
     <script>
-        const SERVER_URL = "https://easy-brooms-retire.loca.lt"; 
+        const SERVER_URL = "https://metal-teeth-warn.loca.lt"; 
         let currentUsername = "";
 
         function handleSendKey(e) {
-            if (e.key === "Enter") {
-                sendMessage();
-            }
+            if (e.key === "Enter") sendMessage();
         }
 
-        function login() {
-            const input = document.getElementById("usernameInput").value.trim();
-            if (input !== "") {
-                currentUsername = input;
-                document.getElementById("loginScreen").classList.add("hidden");
-                document.getElementById("chatScreen").classList.remove("hidden");
-                loadMessages();
-                setInterval(loadMessages, 2000);
+        async function submitAction(actionType) {
+            const username = document.getElementById("usernameInput").value.trim();
+            const password = document.getElementById("passwordInput").value.trim();
+            const infoText = document.getElementById("infoText");
+
+            if (!username || !password) {
+                infoText.textContent = "Please fill in both fields.";
+                infoText.classList.remove("hidden");
+                return;
+            }
+
+            const endpoint = actionType === 'register' ? '/register' : '/login';
+
+            try {
+                const res = await fetch(`${SERVER_URL}${endpoint}`, {
+                    method: "POST",
+                    headers: { 
+                        "Content-Type": "application/json",
+                        "Bypass-Tunnel-Remainder": "true"
+                    },
+                    body: JSON.stringify({ username: username, password: password })
+                });
+
+                const data = await res.json();
+
+                if (res.ok && data.success) {
+                    currentUsername = username;
+                    document.getElementById("loginScreen").classList.add("hidden");
+                    document.getElementById("chatScreen").classList.remove("hidden");
+                    
+                    loadMessages();
+                    setInterval(loadMessages, 2000);
+                } else {
+                    infoText.textContent = data.message || "Action failed.";
+                    infoText.classList.remove("hidden");
+                }
+            } catch (err) {
+                console.error("Auth error:", err);
+                infoText.textContent = "Could not connect to server.";
+                infoText.classList.remove("hidden");
             }
         }
 
@@ -56,15 +163,20 @@
                     method: "GET",
                     headers: { "Bypass-Tunnel-Remainder": "true" }
                 });
+                
                 if (!res.ok) return;
+
                 const data = await res.json();
                 const chatBox = document.getElementById("chatBox");
                 chatBox.innerHTML = "";
+                
                 data.messages.forEach(msg => {
                     const div = document.createElement("div");
+                    div.className = "msg";
                     div.textContent = msg;
                     chatBox.appendChild(div);
                 });
+                
                 chatBox.scrollTop = chatBox.scrollHeight;
             } catch (err) {
                 console.error("Fetch GET error:", err);
@@ -74,8 +186,10 @@
         async function sendMessage() {
             const input = document.getElementById("messageInput");
             const message = input.value.trim();
+
             if (message !== "") {
                 input.value = "";
+
                 try {
                     await fetch(`${SERVER_URL}/send-message`, {
                         method: "POST",
@@ -88,6 +202,7 @@
                             message: message
                         })
                     });
+
                     loadMessages();
                 } catch (err) {
                     console.error("Fetch POST error:", err);
